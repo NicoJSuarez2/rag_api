@@ -9,9 +9,9 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
 )
-
-MODEL_NAME = os.getenv("MODEL_NAME", "tinyllama")
+MODEL_NAME = os.getenv("MODEL_NAME", "tinyllama:latest")
 logging.info(f"Using model: {MODEL_NAME}")
+
 
 app = FastAPI()
 
@@ -21,6 +21,7 @@ ollama_client = ollama.Client(
     host="http://127.0.0.1:11434"
 )
 
+logging.info(ollama_client.list())
 
 @app.post("/query")
 def query(q: str):
