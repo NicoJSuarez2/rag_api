@@ -18,7 +18,7 @@ app = FastAPI()
 chroma = chromadb.PersistentClient(path="./db")
 collection = chroma.get_or_create_collection("docs")
 ollama_client = ollama.Client(
-    host="http://127.0.0.1:11434"
+    host="http://72.61.70.104/:11434"
 )
 
 
