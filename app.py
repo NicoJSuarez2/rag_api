@@ -3,6 +3,7 @@ import chromadb
 import ollama
 import os
 import logging
+import uuid
 
 logging.basicConfig(
     level=logging.INFO,
@@ -12,10 +13,11 @@ logging.basicConfig(
 MODEL_NAME = os.getenv("MODEL_NAME", "tinyllama")
 logging.info(f"Using model: {MODEL_NAME}")
 
-
 app = FastAPI()
+
 chroma = chromadb.PersistentClient(path="./db")
 collection = chroma.get_or_create_collection("docs")
+
 
 @app.post("/query")
 def query(q: str):
@@ -23,28 +25,23 @@ def query(q: str):
     context = results["documents"][0][0] if results["documents"] else ""
 
     answer = ollama.generate(
-    model=MODEL_NAME,
-    prompt=f"Context:\n{context}\n\nQuestion: {q}\n\nAnswer clearly and concisely:"
+        model=MODEL_NAME,
+        prompt=f"Context:\n{context}\n\nQuestion: {q}\n\nAnswer clearly and concisely:",
+    )
+
     logging.info(f"/query asked: {q}")
 
-
-)
-
-
-
     return {"answer": answer["response"]}
+
 
 @app.post("/add")
 def add_knowledge(text: str):
     """Add new content to the knowledge base dynamically."""
     try:
-        # Generate a unique ID for this document
-        import uuid
         doc_id = str(uuid.uuid4())
-
-        # Add the text to Chroma collection
         collection.add(documents=[text], ids=[doc_id])
-        logging.info(f"/add received new text (id will be generated)")
+
+        logging.info(f"/add received new text (id={doc_id})")
 
         return {
             "status": "success",
@@ -57,8 +54,7 @@ def add_knowledge(text: str):
             "message": str(e)
         }
 
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
-
-
