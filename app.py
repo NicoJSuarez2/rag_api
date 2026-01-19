@@ -39,6 +39,8 @@ collection = chroma.get_or_create_collection("docs")
 # -------------------------------------------------
 ollama_client = None
 
+client = ollama.Client(host=OLLAMA_HOST)
+
 
 def get_ollama_client():
     global ollama_client
@@ -49,9 +51,9 @@ def get_ollama_client():
 
 @app.on_event("startup")
 def startup_event():
-    logging.info("Waiting for Ollama...")
+    import time
 
-    client = get_ollama_client()
+    logging.info("Waiting for Ollama...")
 
     for i in range(10):
         try:
