@@ -35,28 +35,21 @@ chroma = chromadb.PersistentClient(path="./db")
 collection = chroma.get_or_create_collection("docs")
 
 # -------------------------------------------------
-# Ollama (lazy)
+# Ollama helpers
 # -------------------------------------------------
-ollama_client = None
-
-client = ollama.Client(host=OLLAMA_HOST)
-
-
 def get_ollama_client():
-    global ollama_client
-    if ollama_client is None:
-        ollama_client = ollama.Client(host=OLLAMA_HOST)
-    return ollama_client
+    if not hasattr(app.state, "ollama"):
+        app.state.ollama = ollama.Client(host=OLLAMA_HOST)
+    return app.state.ollama
 
 
 @app.on_event("startup")
 def startup_event():
-    import time
-
     logging.info("Waiting for Ollama...")
 
     for i in range(10):
         try:
+            client = get_ollama_client()
             models = client.list()
             logging.info(f"Ollama ready. Models: {models}")
             return
@@ -65,7 +58,6 @@ def startup_event():
             time.sleep(2)
 
     raise RuntimeError("Ollama is not available after retries")
-
 
 # -------------------------------------------------
 # Endpoints
@@ -94,22 +86,15 @@ Answer clearly and concisely:""",
 
 @app.post("/add")
 def add_knowledge(text: str):
-    try:
-        doc_id = str(uuid.uuid4())
-        collection.add(documents=[text], ids=[doc_id])
+    doc_id = str(uuid.uuid4())
+    collection.add(documents=[text], ids=[doc_id])
 
-        logging.info(f"/add received new text (id={doc_id})")
+    logging.info(f"/add received new text (id={doc_id})")
 
-        return {
-            "status": "success",
-            "id": doc_id
-        }
-    except Exception as e:
-        logging.exception("Error adding knowledge")
-        return {
-            "status": "error",
-            "message": str(e)
-        }
+    return {
+        "status": "success",
+        "id": doc_id
+    }
 
 
 @app.get("/health")
