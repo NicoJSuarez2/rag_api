@@ -3,6 +3,8 @@ import chromadb
 import ollama
 import os 
 import logging
+import asyncio
+from fastapi import HTTPException
 
 
 logging.basicConfig(
@@ -18,18 +20,27 @@ app = FastAPI()
 chroma = chromadb.PersistentClient(path="./db")
 collection = chroma.get_or_create_collection("docs")
 
-@app.post("/query")
-def query(q: str):
+
+def run_query(q: str):
     results = collection.query(query_texts=[q], n_results=1)
     context = results["documents"][0][0] if results["documents"] else ""
-    logging.info(f"/query asked: {q}")
 
     answer = ollama.generate(
-    model=MODEL_NAME,
-    prompt=f"Context:\n{context}\n\nQuestion: {q}\n\nAnswer clearly and concisely:"
+        model=MODEL_NAME,
+        prompt=f"Context:\n{context}\n\nQuestion: {q}\n\nAnswer clearly and concisely:"
     )
 
-    return {"answer": answer["response"]}
+    return answer["response"]
+
+@app.post("/query")
+async def query(q: str):
+    try:
+        logging.info(f"/query asked: {q}")
+        response = await asyncio.to_thread(run_query, q)
+        return {"answer": response}
+    except Exception as e:
+        logging.exception("Error en /query")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/add")
 def add_knowledge(text: str):
