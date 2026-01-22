@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: rag-api-container
-        image: rag-app
+        image: rag-api:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8000
