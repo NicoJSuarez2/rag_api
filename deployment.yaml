@@ -20,4 +20,5 @@ spec:
         - containerPort: 8000
         env:
         - name: OLLAMA_HOST
-          value: "host.docker.internal:11434"
+          value: http://ollama-service:11434
+
