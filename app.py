@@ -11,9 +11,8 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
 )
-ollama_client = ollama.Client(
-    host="http://evolutionapi_ollama:11434"
-)
+ollama_host = os.getenv("OLLAMA_HOST", "http://ollama-service:11434")
+ollama_client = ollama.Client(host=ollama_host)
 
 MODEL_NAME = os.getenv("MODEL_NAME", "tinyllama")
 logging.info(f"Using model: {MODEL_NAME}")
