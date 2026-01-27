@@ -17,3 +17,6 @@ spec:
         image: ollama/ollama:0.9.6
         ports:
         - containerPort: 11434
+        env:
+        - name: OLLAMA_HOST
+          value: 0.0.0.0:11434
