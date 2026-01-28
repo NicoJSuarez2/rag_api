@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 import chromadb
-import ollama
 import os 
 import logging
 import asyncio
@@ -11,8 +10,19 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
 )
-ollama_host = os.getenv("OLLAMA_HOST", "http://ollama-service:11434")
-ollama_client = ollama.Client(host=ollama_host)
+
+# Check if running in mock mode
+USE_MOCK_LLM = os.getenv("USE_MOCK_LLM", "0") == "1"
+
+# Only initialize Ollama client if not in mock mode
+if not USE_MOCK_LLM:
+    import ollama
+    ollama_host = os.getenv("OLLAMA_HOST", "http://ollama-service:11434")
+    ollama_client = ollama.Client(host=ollama_host)
+    logging.info(f"Ollama client initialized at {ollama_host}")
+else:
+    ollama_client = None
+    logging.info("Running in MOCK mode - Ollama client disabled")
 
 MODEL_NAME = os.getenv("MODEL_NAME", "tinyllama")
 logging.info(f"Using model: {MODEL_NAME}")
@@ -22,39 +32,26 @@ app = FastAPI()
 chroma = chromadb.PersistentClient(path="./db")
 collection = chroma.get_or_create_collection("docs")
 
-def run_query(q: str):
-    results = collection.query(query_texts=[q], n_results=1)
-
-    docs = results.get("documents", [])
-    context = docs[0][0] if docs and docs[0] else ""
-
-    answer = ollama_client.generate(
-        model=MODEL_NAME,
-        prompt=f"Context:\n{context}\n\nQuestion: {q}\n\nAnswer clearly and concisely:"
-    )
-
-    return answer["response"]
-
 
 @app.post("/query")
 async def query(q: str):
     try:
         logging.info(f"/query asked: {q}")
-        response = await asyncio.to_thread(run_query, q)
 
         results = collection.query(query_texts=[q], n_results=1)
         context = results["documents"][0][0] if results["documents"] else ""
 
-        # Check if mock mode is enabled
-        use_mock = os.getenv("USE_MOCK_LLM", "0") == "1"
-        
-        if use_mock:
-            # Return retrieved context directly (deterministic!)
+        if USE_MOCK_LLM:
+            # Return retrieved context directly (deterministic, for testing)
+            logging.info("Mock mode: returning context directly")
             return {"answer": context}
         else:
             # Use real LLM (production mode)
+            if ollama_client is None:
+                raise HTTPException(status_code=500, detail="Ollama client not initialized")
+            
             answer = ollama_client.generate(
-                model="tinyllama",
+                model=MODEL_NAME,
                 prompt=f"Context:\n{context}\n\nQuestion: {q}\n\nAnswer clearly and concisely:"
             )
             return {"answer": answer["response"]}
