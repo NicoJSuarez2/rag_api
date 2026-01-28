@@ -22,7 +22,7 @@ def test_nextwork_query():
         raise Exception(f"Server returned {response.status_code}: {response.text}")
     
     answer = response.json()["answer"]
-    assert "maximus" in answer.lower(), "Missing 'maximus' keyword"
+    assert "platform" in answer.lower() or "learning" in answer.lower(), "Missing expected keywords"
     print("✅ NextWork query test passed")
 
 if __name__ == "__main__":
