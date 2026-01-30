@@ -11,11 +11,19 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
 )
-ollama_host = os.getenv("OLLAMA_HOST", "http://ollama-service:11434")
-ollama_client = ollama.Client(host=ollama_host)
+
+# Check if mock mode is enabled first
+USE_MOCK_LLM = os.getenv("USE_MOCK_LLM", "0") == "1"
+
+if not USE_MOCK_LLM:
+    ollama_host = os.getenv("OLLAMA_HOST", "http://ollama-service:11434")
+    ollama_client = ollama.Client(host=ollama_host)
+else:
+    ollama_client = None
 
 MODEL_NAME = os.getenv("MODEL_NAME", "tinyllama")
 logging.info(f"Using model: {MODEL_NAME}")
+logging.info(f"Mock LLM mode: {USE_MOCK_LLM}")
 
 
 app = FastAPI()
@@ -28,12 +36,16 @@ def run_query(q: str):
     docs = results.get("documents", [])
     context = docs[0][0] if docs and docs[0] else ""
 
-    answer = ollama_client.generate(
-        model=MODEL_NAME,
-        prompt=f"Context:\n{context}\n\nQuestion: {q}\n\nAnswer clearly and concisely:"
-    )
-
-    return answer["response"]
+    if USE_MOCK_LLM:
+        # Mock mode: return context directly
+        return context
+    else:
+        # Real mode: use Ollama
+        answer = ollama_client.generate(
+            model=MODEL_NAME,
+            prompt=f"Context:\n{context}\n\nQuestion: {q}\n\nAnswer clearly and concisely:"
+        )
+        return answer["response"]
 
 
 @app.post("/query")
@@ -41,23 +53,7 @@ async def query(q: str):
     try:
         logging.info(f"/query asked: {q}")
         response = await asyncio.to_thread(run_query, q)
-
-        results = collection.query(query_texts=[q], n_results=1)
-        context = results["documents"][0][0] if results["documents"] else ""
-
-        # Check if mock mode is enabled
-        use_mock = os.getenv("USE_MOCK_LLM", "0") == "1"
-        
-        if use_mock:
-            # Return retrieved context directly (deterministic!)
-            return {"answer": context}
-        else:
-            # Use real LLM (production mode)
-            answer = ollama_client.generate(
-                model="tinyllama",
-                prompt=f"Context:\n{context}\n\nQuestion: {q}\n\nAnswer clearly and concisely:"
-            )
-            return {"answer": answer["response"]}
+        return {"answer": response}
         
     except Exception as e:
         logging.exception("Error en /query")
